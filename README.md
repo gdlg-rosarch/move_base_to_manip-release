@@ -1,3 +1,26 @@
+## move_base_to_manip (indigo) - 1.0.10-3
+
+The packages in the `move_base_to_manip` repository were released into the `indigo` distro by running `/usr/bin/bloom-release move_base_to_manip --track indigo --rosdistro indigo` on `Thu, 02 Mar 2017 23:32:08 -0000`
+
+The `move_base_to_manip` package was released.
+
+Version of package(s) in repository `move_base_to_manip`:
+
+- upstream repository: https://github.com/UTNuclearRoboticsPublic/move_base_to_manip.git
+- release repository: https://github.com/UTNuclearRoboticsPublic/move_base_to_manip-release.git
+- rosdistro version: `1.0.6-0`
+- old version: `1.0.10-2`
+- new version: `1.0.10-3`
+
+Versions of tools used:
+
+- bloom version: `0.5.23`
+- catkin_pkg version: `0.2.10`
+- rosdep version: `0.11.5`
+- rosdistro version: `0.5.0`
+- vcstools version: `0.1.39`
+
+
 ## move_base_to_manip (indigo) - 1.0.10-2
 
 The packages in the `move_base_to_manip` repository were released into the `indigo` distro by running `/usr/bin/bloom-release move_base_to_manip --track indigo --rosdistro indigo` on `Thu, 02 Mar 2017 23:15:16 -0000`
