@@ -1,7 +1,7 @@
 
 #include <actionlib/client/simple_action_client.h>
 #include <move_base_msgs/MoveBaseAction.h>
-#include "move_base_to_manip.h"
+# include "move_base_to_manip.h"
 #include "move_base_to_manip/desired_robot_pose.h"
 
 /////////////////
@@ -91,12 +91,14 @@ void set_node_params(ros::NodeHandle &nh)
 }
 
 // Helper function to plan a Cartesian motion
-const double move_base_to_manip::cartesian_motion(const std::vector<geometry_msgs::Pose>& waypoints, moveit_msgs::RobotTrajectory& trajectory, moveit::planning_interface::MoveGroup& moveGroup, ros::NodeHandle &nh)
+const double move_base_to_manip::cartesian_motion(const std::vector<geometry_msgs::Pose>& waypoints, moveit_msgs::RobotTrajectory& trajectory, moveit::planning_interface::MoveGroupInterface& moveGroup, ros::NodeHandle &nh)
 {
   // May want to disable collision checking or the manipulator will not approach an object.
   bool clear_octomap;
   if ( nh.getParam("clear_octomap", clear_octomap) )
+  {
     move_base_to_manip::clear_octomap_client.call(empty_srv);
+  }
   double cartesian_path_resolution;
   nh.getParam("cartesian_plan_res", cartesian_path_resolution);
   double fraction = moveGroup.computeCartesianPath( waypoints, cartesian_path_resolution, 0.0, trajectory);
@@ -115,7 +117,7 @@ int main(int argc, char **argv)
   
   std::string move_group_name;
   nh.getParam("move_group_name", move_group_name);
-  moveit::planning_interface::MoveGroup moveGroup( move_group_name );
+  moveit::planning_interface::MoveGroupInterface moveGroup( move_group_name );
   std::string move_group_planner;
   nh.getParam("move_group_planner", move_group_planner);
   moveGroup.setPlannerId( move_group_planner );
@@ -131,7 +133,7 @@ int main(int argc, char **argv)
   nh.getParam("orientation_tolerance", orient_tol);
   moveGroup.setGoalOrientationTolerance(orient_tol);
   
-  moveit::planning_interface::MoveGroup::Plan move_plan;
+  moveit::planning_interface::MoveGroupInterface::Plan move_plan;
   
   geometry_msgs::PoseStamped start_pose = moveGroup.getCurrentPose();
 
@@ -175,7 +177,7 @@ int main(int argc, char **argv)
 
 PLAN_AGAIN:
   bool ok_to_flip;
-  nh.getParam("ok_to_flip", ok_to_flip);
+  nh.getParam("ok_to_flip", ok_to_flip); 
   if ( !moveGroup.plan(move_plan) && ok_to_flip )  // If it fails, try spinning the gripper 180deg
   {
     geometry_msgs::Quaternion gripper_quat_msg = tf::createQuaternionMsgFromRollPitchYaw( 0., 0., object_yaw +3.14159);
@@ -320,13 +322,12 @@ PLAN_CARTESIAN_AGAIN:
   baseMarker.lifetime = ros::Duration();
   baseVisualizationPublisher.publish(baseMarker);
   ros::Duration(1).sleep();
-  
+
   // May want to disable collision checking or the manipulator will not approach an object.
   bool clear_costmaps;
   if ( nh.getParam("clear_costmaps", clear_costmaps) )
     move_base_to_manip::clear_costmaps_client.call( move_base_to_manip::empty_srv );
-
-  // Send the goal to move_base
+  
   ac.sendGoal(goal);
 
   // If the robot still can't reach the goal (it should be very close), run this program again.
