@@ -60,6 +60,7 @@ int main(int argc, char **argv)
   provide_target::desired_ee_pose.pose.orientation.z = 0.;
   provide_target::desired_ee_pose.pose.orientation.w = 1.;
 
+
   // Cosmetic details for Rviz arrow
   // Head is at points.at(0), tail is at points.at(1)
   visualization_msgs::Marker arrow_marker;
@@ -85,7 +86,7 @@ int main(int argc, char **argv)
   arrow_marker.points[0].z = provide_target::desired_ee_pose.pose.position.z+0.25;
 
   provide_target::desired_ee_pose.lifetime = ros::Duration();
-  approachVisualizationPublisher.publish(arrow_marker);
+approachVisualizationPublisher.publish(arrow_marker);
 
   // Start a service. Wait until another node requests the desired pose, then shut down (if requested).
   ros::ServiceServer service = nh.advertiseService("desired_robot_pose", desired_robot_pose);

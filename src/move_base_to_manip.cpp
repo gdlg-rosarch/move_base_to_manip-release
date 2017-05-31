@@ -1,5 +1,5 @@
 
-#include "move_base_to_manip.h"
+# include "move_base_to_manip.h"
 
 /////////////////
 // The algorithm:
@@ -19,7 +19,6 @@
 
 ///////////////////////////////////////////////////
 
-
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "move_base_to_manip");
@@ -27,14 +26,13 @@ int main(int argc, char **argv)
   spinner.start();
   ros::NodeHandle nh;
   move_base_to_manip::set_node_params(nh);
-
+  
   std::string move_group_name;
   nh.getParam("/move_base_to_manip/move_group_name", move_group_name);
-  moveit::planning_interface::MoveGroup moveGroup( move_group_name );
-  
+  moveit::planning_interface::MoveGroupInterface moveGroup( move_group_name );
   move_base_to_manip::setup_move_group(nh, moveGroup);
   
-  moveit::planning_interface::MoveGroup::Plan move_plan;
+  moveit::planning_interface::MoveGroupInterface::Plan move_plan;
   
   geometry_msgs::PoseStamped start_pose = moveGroup.getCurrentPose();
 
@@ -47,7 +45,10 @@ int main(int argc, char **argv)
   ////////////////////////////////////////////////////////////////////////
   ros::ServiceClient client = nh.serviceClient<move_base_to_manip::desired_robot_pose>("desired_robot_pose");
   move_base_to_manip::desired_robot_pose srv;
-  srv.request.shutdown_service = true; // Shut down the service after it sends the pose.
+
+  bool shutdown_flag;
+  nh.getParam("/move_base_to_manip/shutdown", shutdown_flag);
+  srv.request.shutdown_service = shutdown_flag; // Shut down the service after it sends the pose?
   geometry_msgs::PoseStamped desired_pose;
 
   while ( !client.call(srv) ) // If we couldn't read the desired pose. The service prob isn't up yet
@@ -55,7 +56,31 @@ int main(int argc, char **argv)
     ROS_INFO_STREAM("Waiting for the 'desired_robot_pose' service.");
     ros::Duration(2).sleep();
   }
+
+  // Make sure it's in the right frame
+  std::string base_frame_name;
+  nh.getParam("/move_base_to_manip/base_frame_name", base_frame_name);
   
+  tf2_ros::Buffer tfBuffer;
+
+  tf2_ros::TransformListener tf2_listener(tfBuffer);
+
+  geometry_msgs::TransformStamped tf_to_base_link_frame;
+
+  tf::TransformListener listener;
+  listener.waitForTransform(base_frame_name, srv.response.desired_robot_pose.header.frame_id, ros::Time(0), ros::Duration(10.0) );
+
+  try{
+    tf_to_base_link_frame = tfBuffer.lookupTransform("base_link", srv.response.desired_robot_pose.header.frame_id, ros::Time(0), ros::Duration(1.0) );
+
+    tf2::doTransform(srv.response.desired_robot_pose, desired_pose, tf_to_base_link_frame);
+  }
+
+  catch(tf2::TransformException ex){
+    ROS_ERROR("%s",ex.what());
+    return false;
+  }
+
   desired_pose = srv.response.desired_robot_pose;
   
   // We don't want to move in (X,Y), initially
@@ -78,7 +103,7 @@ int main(int argc, char **argv)
 
 PLAN_AGAIN:
   bool ok_to_flip;
-  nh.getParam("/move_base_to_manip/ok_to_flip", ok_to_flip);
+  nh.getParam("/move_base_to_manip/ok_to_flip", ok_to_flip); 
   if ( !moveGroup.plan(move_plan) && ok_to_flip )  // If it fails, try spinning the gripper 180deg
   {
     geometry_msgs::Quaternion gripper_quat_msg = tf::createQuaternionMsgFromRollPitchYaw( 0., 0., object_yaw +3.14159);
@@ -181,8 +206,6 @@ PLAN_CARTESIAN_AGAIN:
   }
   
   move_base_msgs::MoveBaseGoal goal;
-  std::string base_frame_name;
-  nh.getParam("/move_base_to_manip/base_frame_name", base_frame_name);
   goal.target_pose.header.frame_id = base_frame_name;
   goal.target_pose.header.stamp = ros::Time::now();
 
@@ -209,13 +232,12 @@ PLAN_CARTESIAN_AGAIN:
   move_base_to_manip::setup_base_marker(baseMarker, goal);
   baseVisualizationPublisher.publish(baseMarker);
   ros::Duration(1).sleep();
-  
+
   // May want to disable collision checking or the manipulator will not approach an object.
   bool clear_costmaps;
   if ( nh.getParam("/move_base_to_manip/clear_costmaps", clear_costmaps) )
     move_base_to_manip::clear_costmaps_client.call( move_base_to_manip::empty_srv );
-
-  // Send the goal to move_base
+  
   ac.sendGoal(goal);
 
   // If the robot still can't reach the goal (it should be very close), run this program again.
@@ -236,29 +258,25 @@ void move_base_to_manip::set_node_params(ros::NodeHandle &nh)
   // Use a Cartesian motion plan or a regular motion plan?
   if (!nh.hasParam("/move_base_to_manip/move_cartesian"))
   {
-    bool temp = false;
-    nh.setParam("/move_base_to_manip/move_cartesian", temp);
+    nh.setParam("/move_base_to_manip/move_cartesian", false);
   }
 
   // Clear the Octomap collision scene before planning the final arm motion?
   if (!nh.hasParam("/move_base_to_manip/clear_octomap"))
-  {
-    bool temp = true;  
-    nh.setParam("/move_base_to_manip/clear_octomap", temp);
+  { 
+    nh.setParam("/move_base_to_manip/clear_octomap", true);
   }
 
   // Clear the move_base costmaps before moving the base?
   if (!nh.hasParam("/move_base_to_manip/clear_costmaps"))
-  {
-    bool temp = true;  
-    nh.setParam("/move_base_to_manip/clear_costmaps", temp);
+  { 
+    nh.setParam("/move_base_to_manip/clear_costmaps", true);
   }
 
   // Prompt the user to approve each arm motion before it executes?
   if (!nh.hasParam("/move_base_to_manip/prompt_before_motion"))
   {
-    bool temp = true;
-    nh.setParam("/move_base_to_manip/prompt_before_motion", temp);
+    nh.setParam("/move_base_to_manip/prompt_before_motion", true);
   }
 
   // Cartesian planning resolution, in meters
@@ -286,18 +304,26 @@ void move_base_to_manip::set_node_params(ros::NodeHandle &nh)
  // If true, the planner will try to flip the gripper +/-180 deg about Z when it cannot reach a pose
  if (!nh.hasParam("/move_base_to_manip/ok_to_flip"))
  {
-   bool temp = true;
-   nh.setParam("/move_base_to_manip/ok_to_flip", temp);
+   nh.setParam("/move_base_to_manip/ok_to_flip", true);
+  }
+
+ // Part of the service request.
+ // True ==> May be used to signal that the server which provides the pose can shut down after the service returns.
+ if (!nh.hasParam("/move_base_to_manip/shutdown"))
+ {
+   nh.setParam("/move_base_to_manip/shutdown", true);
   }
 }
 
 // Helper function to plan a Cartesian motion
-const double move_base_to_manip::cartesian_motion(const std::vector<geometry_msgs::Pose>& waypoints, moveit_msgs::RobotTrajectory& trajectory, moveit::planning_interface::MoveGroup& moveGroup, ros::NodeHandle &nh)
+const double move_base_to_manip::cartesian_motion(const std::vector<geometry_msgs::Pose>& waypoints, moveit_msgs::RobotTrajectory& trajectory, moveit::planning_interface::MoveGroupInterface& moveGroup, ros::NodeHandle &nh)
 {
   // May want to disable collision checking or the manipulator will not approach an object.
   bool clear_octomap;
   if ( nh.getParam("/move_base_to_manip/clear_octomap", clear_octomap) )
+  {
     move_base_to_manip::clear_octomap_client.call(empty_srv);
+  }
   double cartesian_path_resolution;
   nh.getParam("/move_base_to_manip/cartesian_plan_res", cartesian_path_resolution);
   double fraction = moveGroup.computeCartesianPath( waypoints, cartesian_path_resolution, 0.0, trajectory);
@@ -306,7 +332,7 @@ const double move_base_to_manip::cartesian_motion(const std::vector<geometry_msg
 }
 
 // Helper function to initialize move_group
-void move_base_to_manip::setup_move_group(ros::NodeHandle& nh, moveit::planning_interface::MoveGroup& moveGroup)
+void move_base_to_manip::setup_move_group(ros::NodeHandle& nh, moveit::planning_interface::MoveGroupInterface& moveGroup)
 {
   std::string move_group_planner;
   nh.getParam("/move_base_to_manip/move_group_planner", move_group_planner);
@@ -322,6 +348,10 @@ void move_base_to_manip::setup_move_group(ros::NodeHandle& nh, moveit::planning_
   double orient_tol;
   nh.getParam("/move_base_to_manip/orientation_tolerance", orient_tol);
   moveGroup.setGoalOrientationTolerance(orient_tol);
+
+  std::string base_frame_name;
+  nh.getParam("/move_base_to_manip/base_frame_name", base_frame_name);
+  moveGroup.setPoseReferenceFrame(base_frame_name);
 }
 
 // Helper function to set the RViz marker
