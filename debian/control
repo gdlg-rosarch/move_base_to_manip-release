@@ -1,0 +1,12 @@
+Source: ros-kinetic-move-base-to-manip
+Section: misc
+Priority: extra
+Maintainer: Andy Zelenak <andyz@utexas.edu>
+Build-Depends: debhelper (>= 9.0.0), libeigen3-dev, ros-kinetic-catkin, ros-kinetic-geometry-msgs, ros-kinetic-interactive-markers, ros-kinetic-message-generation, ros-kinetic-message-runtime, ros-kinetic-move-base-msgs, ros-kinetic-moveit-core, ros-kinetic-moveit-ros-planning-interface, ros-kinetic-roscpp, ros-kinetic-tf, ros-kinetic-tf2, ros-kinetic-visualization-msgs
+Homepage: http://wiki.ros.org/move_base_to_manip
+Standards-Version: 3.9.2
+
+Package: ros-kinetic-move-base-to-manip
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libeigen3-dev, ros-kinetic-geometry-msgs, ros-kinetic-interactive-markers, ros-kinetic-message-generation, ros-kinetic-message-runtime, ros-kinetic-move-base-msgs, ros-kinetic-moveit-core, ros-kinetic-moveit-ros-planning-interface, ros-kinetic-roscpp, ros-kinetic-tf, ros-kinetic-tf2, ros-kinetic-visualization-msgs
+Description: Move the robot base until a desired end-effector pose can be reached.
